@@ -52,7 +52,22 @@ export function TerminalScenario() {
             systemInstruction: {
               parts: [
                 {
-                  text: "You are a financial scenario processor for analyzing 'what if' financial scenarios. You can modify financial data by calling functions. When users ask about financial scenarios like raises, expense changes, or investment adjustments, use the appropriate tools to make those changes. Always provide clear descriptions of what changes you're making.",
+                  text: `You are a financial scenario processor for analyzing 'what if' financial scenarios. You can modify financial data by calling functions. When users ask about financial scenarios like raises, expense changes, or investment adjustments, use the appropriate tools to make those changes. Always provide clear descriptions of what changes you're making.
+
+Current Financial Context:
+- Monthly Income: $${state.data.monthly_income.toLocaleString()}
+- Current Financial Categories and Values:
+${JSON.stringify(state.data.steps, null, 2)}
+
+Available Categories for modifications:
+- Fixed Spend (includes Rent, Utilities, Insurance, Car Payment)
+- Variable Spend (includes Groceries, Restaurants, Entertainment, Other)
+- Pre-Tax Deductions (includes Employer 401K)
+- Taxes (includes Federal, State)
+- Investments (includes Long Term Taxable, Roth IRA)
+- Emergency Fund
+
+When users mention relative changes (like "increase by $100" or "raise by 10%"), calculate based on current values. When they mention absolute values (like "set rent to $2500"), use those exact amounts.`,
                 },
               ],
             },
@@ -145,6 +160,10 @@ export function TerminalScenario() {
       const data = await response.json()
       console.log("Gemini response:", data)
 
+      if (data.error) {
+        throw new Error(`API Error: ${data.error.message || 'Unknown API error'}`)
+      }
+
       if (data.candidates?.[0]?.content) {
         const content = data.candidates[0].content
         let actionsPerformed = []
@@ -204,20 +223,34 @@ export function TerminalScenario() {
             description: "Financial model updated successfully",
           })
         }
+      } else if (data.candidates?.[0]?.finishReason) {
+        // Handle cases where AI doesn't provide content but has a finish reason
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: (Date.now() + 1).toString(),
+            role: "assistant",
+            content: `AI Response: ${data.candidates[0].finishReason}. Please try rephrasing your request.`,
+          },
+        ])
+      } else {
+        // No valid response from AI
+        throw new Error("No valid response from AI")
       }
     } catch (error) {
       console.error("AI processing error:", error)
+      const errorMessage = error instanceof Error ? error.message : "Unknown error occurred"
       setMessages((prev) => [
         ...prev,
         {
           id: (Date.now() + 1).toString(),
           role: "assistant",
-          content: "ERROR: Unable to process financial scenario. Please try again.",
+          content: `ERROR: ${errorMessage}. Please try again or check your API key.`,
         },
       ])
       toast({
         title: "PROCESSING_FAILED",
-        description: "Unable to process scenario",
+        description: errorMessage,
         variant: "destructive",
       })
     } finally {

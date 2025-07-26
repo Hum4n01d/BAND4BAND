@@ -9,10 +9,11 @@ import { Toaster } from "@/components/ui/toaster";
 export default function Home() {
   return (
     <FinancialProvider>
-      <div className="min-h-screen bg-black text-green-400">
-        <div className="container mx-auto px-4 py-8">
+      <div className="h-screen bg-black text-green-400 flex flex-col">
+        {/* Top Controls Bar */}
+        <div className="flex border-b-2 border-green-500 bg-black">
           {/* Terminal header */}
-          <div className="mb-8 border-2 border-green-500 rounded-lg p-6 bg-black scanlines">
+          <div className="border-r-2 border-green-500 p-4 bg-black scanlines min-w-fit">
             <div className="terminal-green text-lg font-mono font-bold mb-2">
               BAND4BAND $$$
             </div>
@@ -24,18 +25,20 @@ export default function Home() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
-            {/* Main Cash Flow Visualization */}
-            <div className="xl:col-span-3">
-              <FlexCashFlow />
-            </div>
-
-            {/* Side Panel */}
-            <div className="space-y-6">
+          {/* Controls */}
+          <div className="flex flex-1">
+            <div className="border-r-2 border-green-500 flex-1">
               <TerminalScenario />
+            </div>
+            <div className="flex-1">
               <TerminalControls />
             </div>
           </div>
+        </div>
+
+        {/* Main Cash Flow Visualization - Full remaining height */}
+        <div className="flex-1 overflow-hidden">
+          <FlexCashFlow />
         </div>
 
         <Toaster />
