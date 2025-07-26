@@ -116,11 +116,13 @@ export function RigidCashFlow() {
   })
 
   // Layout constants
-  const svgWidth = 1600
-  const svgHeight = 700
+  const svgWidth = 2400
+  const svgHeight = 1000
   const stepWidth = 120
   const outflowWidth = 100
-  const stepSpacing = 300
+  const breakdownWidth = 80
+  const stepSpacing = 500  // Much more space between steps
+  const startX = 150       // Shift everything to the right
   const centerY = svgHeight / 2
 
   // Animate dollar signs
@@ -134,33 +136,36 @@ export function RigidCashFlow() {
           y: dollar.y + (dollar.targetY - dollar.y) * 0.015
         })).filter(dollar => dollar.progress < 1)
         
-        // Add new dollars for outflows
-        if (Math.random() < 0.4) {
+        // Add new dollars for breakdown boxes
+        if (Math.random() < 0.3) {
           steps.forEach((step, stepIndex) => {
-            if (step.outflows.length > 0 && Math.random() < 0.3) {
-              const stepX = stepIndex * stepSpacing + 50
-              const outflowX = stepX + stepWidth + 30
+            if (step.outflows.length > 0 && Math.random() < 0.4) {
+              const stepX = stepIndex * stepSpacing + startX
               
               step.outflows.forEach((outflow, outflowIndex) => {
-                if (Math.random() < 0.5) {
-                  const outflowHeight = Math.max(20, outflow.value / scaleFactor)
-                  // Calculate proper Y position using same logic as render
-                  const totalOutflowHeight = step.outflows.reduce((sum, o) => sum + Math.max(20, o.value / scaleFactor), 0)
-                  const spacing = Math.max(10, (svgHeight * 0.4 - totalOutflowHeight) / Math.max(1, step.outflows.length - 1))
-                  let currentY = centerY - totalOutflowHeight / 2
-                  for (let i = 0; i < outflowIndex; i++) {
-                    currentY += Math.max(20, step.outflows[i].value / scaleFactor) + spacing
-                  }
-                  const outflowY = currentY
-                  
-                  updated.push({
-                    id: Math.random().toString(),
-                    x: stepX + stepWidth,
-                    y: centerY,
-                    targetX: outflowX + outflowWidth,
-                    targetY: outflowY + outflowHeight / 2,
-                    progress: 0,
-                    type: "outflow"
+                if (outflow.breakdown && Math.random() < 0.5) {
+                  const breakdownEntries = Object.entries(outflow.breakdown)
+                  breakdownEntries.forEach(([breakdownName, breakdownValue], breakdownIndex) => {
+                    if (Math.random() < 0.6) {
+                      const breakdownX = stepX + stepWidth + 250
+                      const breakdownHeight = Math.max(15, Number(breakdownValue) / scaleFactor)
+                      
+                      // Calculate Y position using same logic as render
+                      const totalBreakdownHeight = breakdownEntries.reduce((sum, [, val]) => sum + Math.max(15, Number(val) / scaleFactor), 0)
+                      const outflowGroupSpacing = 180
+                      let outflowGroupY = centerY - (step.outflows.length - 1) * outflowGroupSpacing / 2 + outflowIndex * outflowGroupSpacing - totalBreakdownHeight / 2
+                      const breakdownY = outflowGroupY + breakdownIndex * (breakdownHeight + 10)
+                      
+                      updated.push({
+                        id: Math.random().toString(),
+                        x: stepX + stepWidth,
+                        y: centerY,
+                        targetX: breakdownX + breakdownWidth,
+                        targetY: breakdownY + breakdownHeight / 2,
+                        progress: 0,
+                        type: outflow.type === "investment" ? "flow" : "outflow"
+                      })
+                    }
                   })
                 }
               })
@@ -172,14 +177,14 @@ export function RigidCashFlow() {
         if (Math.random() < 0.2) {
           steps.forEach((step, stepIndex) => {
             if (stepIndex < steps.length - 1 && Math.random() < 0.4) {
-              const currentStepX = stepIndex * stepSpacing + 50
+              const currentStepX = stepIndex * stepSpacing + startX
               const nextStepIndex = stepIndex + 1
-              const nextStepX = nextStepIndex * stepSpacing + 50
-              const outflowCount = step.outflows.length
+              const nextStepX = nextStepIndex * stepSpacing + startX
+              const outflowWidth = step.outflows.length > 0 ? 250 : 0
              
               updated.push({
                 id: Math.random().toString(),
-                x: currentStepX + stepWidth + outflowWidth + 60,
+                x: currentStepX + stepWidth + outflowWidth + 80,
                 y: centerY,
                 targetX: nextStepX,
                 targetY: centerY,
@@ -234,6 +239,30 @@ export function RigidCashFlow() {
         <span className="terminal-green text-sm font-mono">1:{scaleFactor}</span>
       </div>
       
+      {/* Legend */}
+      <div className="mb-4 flex items-center justify-center space-x-8">
+        <div className="flex items-center space-x-2">
+          <div className="w-4 h-4 bg-green-900 border-2 border-green-400 rounded"></div>
+          <span className="terminal-green text-xs font-mono">Income Checkpoints</span>
+        </div>
+        <div className="flex items-center space-x-2">
+          <div className="w-4 h-4 bg-blue-800 border border-blue-300 rounded"></div>
+          <span className="text-blue-300 text-xs font-mono">Investments</span>
+        </div>
+        <div className="flex items-center space-x-2">
+          <div className="w-4 h-4 bg-red-800 border border-red-300 rounded"></div>
+          <span className="text-red-300 text-xs font-mono">Spending</span>
+        </div>
+        <div className="flex items-center space-x-2">
+          <span className="text-blue-400 text-xs font-mono">$</span>
+          <span className="text-blue-300 text-xs font-mono">Investment Flow</span>
+        </div>
+        <div className="flex items-center space-x-2">
+          <span className="text-red-400 text-xs font-mono">$</span>
+          <span className="text-red-300 text-xs font-mono">Spending Flow</span>
+        </div>
+      </div>
+      
       <div className="relative overflow-x-auto">
         <svg
           ref={svgRef}
@@ -245,9 +274,9 @@ export function RigidCashFlow() {
           {steps.map((step, stepIndex) => {
             if (stepIndex >= steps.length - 1) return null
             
-            const currentX = stepIndex * stepSpacing + 50 + stepWidth
-            const outflowWidth = step.outflows.length > 0 ? 100 + 30 : 0
-            const nextX = (stepIndex + 1) * stepSpacing + 50
+            const currentX = stepIndex * stepSpacing + startX + stepWidth
+            const outflowWidth = step.outflows.length > 0 ? 250 : 0  // Account for breakdown space
+            const nextX = (stepIndex + 1) * stepSpacing + startX
             const strokeWidth = Math.max(3, (step.value / 2000) * 8)
             
             return (
@@ -263,36 +292,44 @@ export function RigidCashFlow() {
             )
           })}
           
-          {/* Outflow lines */}
+          {/* Direct lines to breakdown boxes */}
           {steps.map((step, stepIndex) => {
-            const stepX = stepIndex * stepSpacing + 50
+            const stepX = stepIndex * stepSpacing + startX
             
             return step.outflows.map((outflow, outflowIndex) => {
-              const outflowHeight = Math.max(20, outflow.value / scaleFactor)
-              // Calculate proper Y position using same logic as render
-              const totalOutflowHeight = step.outflows.reduce((sum, o) => sum + Math.max(20, o.value / scaleFactor), 0)
-              const spacing = Math.max(10, (svgHeight * 0.4 - totalOutflowHeight) / Math.max(1, step.outflows.length - 1))
-              let currentY = centerY - totalOutflowHeight / 2
-              for (let i = 0; i < outflowIndex; i++) {
-                currentY += Math.max(20, step.outflows[i].value / scaleFactor) + spacing
-              }
-              const outflowY = currentY
-              const strokeWidth = Math.max(2, (outflow.value / 1000) * 6)
-              const color = outflow.type === "investment" ? "#3b82f6" : "#ef4444"
+              if (!outflow.breakdown) return null
               
-              return (
-                <CurvedPath
-                  key={`outflow-${stepIndex}-${outflowIndex}`}
-                  x1={stepX + stepWidth}
-                  y1={centerY}
-                  x2={stepX + stepWidth + 30}
-                  y2={outflowY + outflowHeight / 2}
-                  strokeWidth={strokeWidth}
-                  color={color}
-                />
-              )
-            })
-          })}
+              const breakdownEntries = Object.entries(outflow.breakdown)
+              // Calculate total height for this outflow's breakdowns
+              const totalBreakdownHeight = breakdownEntries.reduce((sum, [, val]) => sum + Math.max(15, Number(val) / scaleFactor), 0)
+              const totalSpacingHeight = (breakdownEntries.length - 1) * 10
+              const totalOutflowGroupHeight = totalBreakdownHeight + totalSpacingHeight
+              
+              // Calculate starting Y for this outflow group
+              const outflowGroupSpacing = 180  // Much more vertical space
+              let outflowGroupY = centerY - (step.outflows.length - 1) * outflowGroupSpacing / 2 + outflowIndex * outflowGroupSpacing - totalOutflowGroupHeight / 2
+              
+              return breakdownEntries.map(([breakdownName, breakdownValue], breakdownIndex) => {
+                const breakdownX = stepX + stepWidth + 250
+                const breakdownHeight = Math.max(15, Number(breakdownValue) / scaleFactor)
+                const breakdownY = outflowGroupY + breakdownIndex * (breakdownHeight + 10)
+                const strokeWidth = Math.max(1, Number(breakdownValue) / 500)
+                const color = outflow.type === "investment" ? "#3b82f6" : "#ef4444"
+                
+                return (
+                  <CurvedPath
+                    key={`breakdown-line-${stepIndex}-${outflowIndex}-${breakdownIndex}`}
+                    x1={stepX + stepWidth}
+                    y1={centerY}
+                    x2={breakdownX}
+                    y2={breakdownY + breakdownHeight / 2}
+                    strokeWidth={strokeWidth}
+                    color={color}
+                  />
+                )
+              })
+            }).flat()
+          }).flat()}
           
           {/* Animated dollars */}
           {animatedDollars.map(dollar => (
@@ -311,7 +348,7 @@ export function RigidCashFlow() {
           
           {/* Step nodes */}
           {steps.map((step, stepIndex) => {
-            const stepX = stepIndex * stepSpacing + 50
+            const stepX = stepIndex * stepSpacing + startX
             const height = Math.max(30, step.value / scaleFactor) // Height = dollars / scaleFactor
             
             return (
@@ -325,15 +362,17 @@ export function RigidCashFlow() {
                   className="fill-green-900 stroke-green-400 stroke-2"
                 />
                 <text
-                  x={stepX + stepWidth + 10}
+                  x={stepX - 10}
                   y={centerY - 8}
+                  textAnchor="end"
                   className="fill-white text-sm font-mono font-bold"
                 >
                   {step.name}
                 </text>
                 <text
-                  x={stepX + stepWidth + 10}
+                  x={stepX - 10}
                   y={centerY + 8}
+                  textAnchor="end"
                   className="fill-green-400 text-sm font-mono"
                 >
                   ${step.value.toLocaleString()}
@@ -342,53 +381,76 @@ export function RigidCashFlow() {
             )
           })}
           
-          {/* Outflow boxes */}
+          
+          {/* Breakdown boxes with category labels */}
           {steps.map((step, stepIndex) => {
-            const stepX = stepIndex * stepSpacing + 50
+            const stepX = stepIndex * stepSpacing + startX
             
             return step.outflows.map((outflow, outflowIndex) => {
-              const outflowX = stepX + stepWidth + 30
-              const outflowHeight = Math.max(20, outflow.value / scaleFactor) // Height = dollars / scaleFactor
-              // Better spacing for outflows to prevent overlap
-              const totalOutflowHeight = step.outflows.reduce((sum, o) => sum + Math.max(20, o.value / scaleFactor), 0)
-              const spacing = Math.max(10, (svgHeight * 0.4 - totalOutflowHeight) / Math.max(1, step.outflows.length - 1))
-              let currentY = centerY - totalOutflowHeight / 2
-              for (let i = 0; i < outflowIndex; i++) {
-                currentY += Math.max(20, step.outflows[i].value / scaleFactor) + spacing
-              }
-              const outflowY = currentY
-              const bgColor = outflow.type === "investment" ? "fill-blue-900" : "fill-red-900"
-              const strokeColor = outflow.type === "investment" ? "stroke-blue-400" : "stroke-red-400"
-              const textColor = outflow.type === "investment" ? "fill-blue-300" : "fill-red-300"
+              if (!outflow.breakdown) return null
               
-              return (
-                <g key={`outflow-${stepIndex}-${outflowIndex}`}>
-                  <rect
-                    x={outflowX}
-                    y={outflowY}
-                    width={outflowWidth}
-                    height={outflowHeight}
-                    rx={4}
-                    className={`${bgColor} ${strokeColor} stroke-2`}
-                  />
+              const breakdownEntries = Object.entries(outflow.breakdown)
+              // Calculate total height for this outflow's breakdowns
+              const totalBreakdownHeight = breakdownEntries.reduce((sum, [, val]) => sum + Math.max(15, Number(val) / scaleFactor), 0)
+              const totalSpacingHeight = (breakdownEntries.length - 1) * 10
+              const totalOutflowGroupHeight = totalBreakdownHeight + totalSpacingHeight
+              
+              // Calculate starting Y for this outflow group
+              const outflowGroupSpacing = 180  // Much more vertical space
+              let outflowGroupY = centerY - (step.outflows.length - 1) * outflowGroupSpacing / 2 + outflowIndex * outflowGroupSpacing - totalOutflowGroupHeight / 2
+              
+              const bgColor = outflow.type === "investment" ? "fill-blue-800" : "fill-red-800"
+              const strokeColor = outflow.type === "investment" ? "stroke-blue-300" : "stroke-red-300"
+              const textColor = outflow.type === "investment" ? "fill-blue-200" : "fill-red-200"
+              
+              return [
+                // Category label on the left
+                <g key={`category-${stepIndex}-${outflowIndex}`}>
                   <text
-                    x={outflowX + outflowWidth + 10}
-                    y={outflowY + outflowHeight / 2 - 5}
-                    className="fill-white text-sm font-mono font-bold"
+                    x={stepX + stepWidth + 220}
+                    y={outflowGroupY + totalOutflowGroupHeight / 2}
+                    textAnchor="end"
+                    className={`${textColor} text-sm font-mono font-bold`}
                   >
                     {outflow.name}
                   </text>
-                  <text
-                    x={outflowX + outflowWidth + 10}
-                    y={outflowY + outflowHeight / 2 + 8}
-                    className={`${textColor} text-sm font-mono`}
-                  >
-                    -${outflow.value.toLocaleString()}
-                  </text>
-                </g>
-              )
-            })
-          })}
+                </g>,
+                // Breakdown boxes
+                ...breakdownEntries.map(([breakdownName, breakdownValue], breakdownIndex) => {
+                  const breakdownX = stepX + stepWidth + 250
+                  const breakdownHeight = Math.max(15, Number(breakdownValue) / scaleFactor)
+                  const breakdownY = outflowGroupY + breakdownIndex * (breakdownHeight + 10)
+                  
+                  return (
+                    <g key={`breakdown-${stepIndex}-${outflowIndex}-${breakdownIndex}`}>
+                      <rect
+                        x={breakdownX}
+                        y={breakdownY}
+                        width={breakdownWidth}
+                        height={breakdownHeight}
+                        rx={3}
+                        className={`${bgColor} ${strokeColor} stroke-1`}
+                      />
+                      <text
+                        x={breakdownX + breakdownWidth + 8}
+                        y={breakdownY + breakdownHeight / 2 - 3}
+                        className="fill-white text-xs font-mono font-bold"
+                      >
+                        {breakdownName}
+                      </text>
+                      <text
+                        x={breakdownX + breakdownWidth + 8}
+                        y={breakdownY + breakdownHeight / 2 + 8}
+                        className={`${textColor} text-xs font-mono`}
+                      >
+                        ${Number(breakdownValue).toLocaleString()}
+                      </text>
+                    </g>
+                  )
+                })
+              ]
+            }).flat()
+          }).flat()}
         </svg>
         
         {/* Editable breakdown panels */}

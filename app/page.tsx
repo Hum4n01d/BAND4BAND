@@ -1,7 +1,7 @@
 "use client"
 
 import { FinancialProvider } from "@/contexts/financial-context"
-import { RigidCashFlow } from "@/components/rigid-cash-flow"
+import { FlexCashFlow } from "@/components/flex-cash-flow"
 import { TerminalScenario } from "@/components/terminal-scenario"
 import { TerminalControls } from "@/components/terminal-controls"
 import { Toaster } from "@/components/ui/toaster"
@@ -25,7 +25,7 @@ export default function Home() {
           <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
             {/* Main Cash Flow Visualization */}
             <div className="xl:col-span-3">
-              <RigidCashFlow />
+              <FlexCashFlow />
             </div>
 
             {/* Side Panel */}
