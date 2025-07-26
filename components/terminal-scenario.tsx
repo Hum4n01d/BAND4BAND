@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useState } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { useFinancial } from "@/contexts/financial-context"
@@ -21,6 +21,15 @@ export function TerminalScenario() {
   const [input, setInput] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [messages, setMessages] = useState<Message[]>([])
+  const messagesEndRef = useRef<HTMLDivElement>(null)
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
+  }
+
+  useEffect(() => {
+    scrollToBottom()
+  }, [messages, isLoading])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -267,7 +276,7 @@ When users mention relative changes (like "increase by $100" or "raise by 10%"),
 
       <div className="space-y-4">
         {/* Chat Messages */}
-        <div className="max-h-60 overflow-y-auto space-y-2">
+        <div className="h-48 overflow-y-auto space-y-2 border border-green-500 rounded p-2 bg-gray-950">
           {messages.length === 0 && (
             <div className="text-center text-green-600 text-xs font-mono py-4">
               [AWAITING_SCENARIO_INPUT]
@@ -299,6 +308,8 @@ When users mention relative changes (like "increase by $100" or "raise by 10%"),
               </div>
             </div>
           )}
+          
+          <div ref={messagesEndRef} />
         </div>
 
         {/* Input Form */}

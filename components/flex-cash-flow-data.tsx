@@ -274,7 +274,7 @@ export function FlexCashFlowData({
                   <div className="flex flex-col items-center relative">
                     {/* Step Box */}
                     <div
-                      className="bg-green-900 border-2 border-green-400 rounded-lg flex items-center justify-center min-w-[60px] relative z-10"
+                      className="bg-green-900 border-2 border-green-400 rounded-lg flex items-center justify-center break-words w-[80px] relative z-10"
                       style={{
                         height: `${Math.max(60, step.value / scaleFactor)}px`,
                       }}
@@ -464,7 +464,6 @@ export function FlexCashFlowData({
           })}
         </div>
       </div>
-
     </div>
   );
 }
