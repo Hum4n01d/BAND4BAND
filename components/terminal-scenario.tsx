@@ -63,20 +63,29 @@ export function TerminalScenario() {
                 {
                   text: `You are a financial scenario processor for analyzing 'what if' financial scenarios. You can modify financial data by calling functions. When users ask about financial scenarios like raises, expense changes, or investment adjustments, use the appropriate tools to make those changes. Always provide clear descriptions of what changes you're making.
 
-Current Financial Context:
-- Monthly Income: $${state.data.monthly_income.toLocaleString()}
-- Current Financial Categories and Values:
-${JSON.stringify(state.data.steps, null, 2)}
+CURRENT FINANCIAL DATA:
+Monthly Income: $${state.data.monthly_income.toLocaleString()}
 
-Available Categories for modifications:
-- Fixed Spend (includes Rent, Utilities, Insurance, Car Payment)
-- Variable Spend (includes Groceries, Restaurants, Entertainment, Other)
-- Pre-Tax Deductions (includes Employer 401K)
-- Taxes (includes Federal, State)
-- Investments (includes Long Term Taxable, Roth IRA)
-- Emergency Fund
+CURRENT EXPENSES & INVESTMENTS:
+${Object.entries(state.data.steps).map(([stepName, step]) => {
+  if (step.outflow) {
+    return Object.entries(step.outflow).map(([categoryName, category]) => {
+      if (category.breakdown) {
+        return `${categoryName}:\n${Object.entries(category.breakdown).map(([item, value]) => `  - ${item}: $${value}`).join('\n')}`
+      }
+      return `${categoryName}: ${category.value}`
+    }).join('\n')
+  }
+  return `${stepName}: ${step.value}`
+}).join('\n\n')}
 
-When users mention relative changes (like "increase by $100" or "raise by 10%"), calculate based on current values. When they mention absolute values (like "set rent to $2500"), use those exact amounts.`,
+IMPORTANT: You have access to all current values above. For example:
+- Current rent is $2000 (in Fixed Spend)
+- Current monthly income is $${state.data.monthly_income.toLocaleString()}
+- If someone asks to "split rent with girlfriend", calculate $2000 ÷ 2 = $1000
+- If someone asks for a "20% raise", calculate $${state.data.monthly_income} × 1.20 = $${Math.round(state.data.monthly_income * 1.20)}
+
+Always calculate relative changes based on the current values shown above.`,
                 },
               ],
             },
