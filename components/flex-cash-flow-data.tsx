@@ -10,6 +10,15 @@ interface AnimatedDollar {
   targetY: number;
   progress: number;
   type: "investment" | "spend";
+  speed: number;
+}
+
+interface ThroughlineDollar {
+  id: string;
+  x: number;
+  y: number;
+  progress: number;
+  stepIndex: number;
 }
 
 interface StepData {
@@ -39,6 +48,9 @@ export function FlexCashFlowData({
   onUpdateBreakdown,
 }: FlexCashFlowDataProps) {
   const [animatedDollars, setAnimatedDollars] = useState<AnimatedDollar[]>([]);
+  const [throughlineDollars, setThroughlineDollars] = useState<
+    ThroughlineDollar[]
+  >([]);
   const containerRef = useRef<HTMLDivElement>(null);
   const animationRef = useRef<number>();
 
@@ -123,12 +135,14 @@ export function FlexCashFlowData({
     const animate = () => {
       setAnimatedDollars((prev) => {
         const updated = prev
-          .map((dollar) => ({
-            ...dollar,
-            progress: Math.min(dollar.progress + 0.02, 1),
-            x: dollar.x + (dollar.targetX - dollar.x) * 0.02,
-            y: dollar.y + (dollar.targetY - dollar.y) * 0.02,
-          }))
+          .map((dollar) => {
+            return {
+              ...dollar,
+              progress: Math.min(dollar.progress + dollar.speed, 1),
+              x: dollar.x + (dollar.targetX - dollar.x) * dollar.speed,
+              y: dollar.y + (dollar.targetY - dollar.y) * dollar.speed,
+            };
+          })
           .filter((dollar) => dollar.progress < 1);
 
         // Add new dollars randomly
@@ -155,6 +169,11 @@ export function FlexCashFlowData({
                     ];
                   const breakdownRect = randomBreakdown.getBoundingClientRect();
 
+                  // Calculate speed based on this specific outflow's value
+                  let speed = 0.02;
+                  if (outflow.value > 1000) speed = Math.min(0.08, 0.02 + (outflow.value / 10000));
+                  else if (outflow.value > 500) speed = 0.04;
+
                   updated.push({
                     id: Math.random().toString(),
                     x: stepRect.right - rect.left,
@@ -164,10 +183,39 @@ export function FlexCashFlowData({
                       breakdownRect.top + breakdownRect.height / 2 - rect.top,
                     progress: 0,
                     type: outflow.type,
+                    speed: speed,
                   });
                 }
               }
             });
+          });
+        }
+
+        return updated;
+      });
+
+      // Animate throughline dollars
+      setThroughlineDollars((prev) => {
+        const updated = prev
+          .map((dollar) => ({
+            ...dollar,
+            progress: Math.min(dollar.progress + 0.05, 1),
+            x: dollar.x + 3, // Move 3px per frame
+          }))
+          .filter((dollar) => dollar.progress < 1 && dollar.x < 64); // Remove when off screen
+
+        // Add new throughline dollars randomly
+        if (Math.random() < 0.2) {
+          steps.forEach((_, stepIndex) => {
+            if (stepIndex < steps.length - 1 && Math.random() < 0.5) {
+              updated.push({
+                id: Math.random().toString(),
+                x: 0,
+                y: 20, // Center of throughline
+                progress: 0,
+                stepIndex,
+              });
+            }
           });
         }
 
@@ -209,118 +257,189 @@ export function FlexCashFlowData({
           ))}
         </div>
 
-        <div className="flex items-center justify-start min-w-max ">
-          {steps.map((step, stepIndex) => (
-            <div key={`step-${stepIndex}`} className="flex items-center ">
-              {/* Step Container */}
-              <div className="flex flex-col items-center relative">
-                {/* Throughline to next step */}
-                {stepIndex < steps.length - 1 && (
-                  <div className="absolute left-full top-1/2 w-16 h-0.5 bg-green-400 transform -translate-y-1/2 z-0"></div>
-                )}
+        <div className="flex items-start justify-start min-w-max py-8">
+          {steps.map((step, stepIndex) => {
+            // Calculate the height needed for this step based on its value and outflows
+            const stepHeight = Math.max(60, step.value / scaleFactor);
 
-                {/* Step Box */}
+            return (
+              <>
                 <div
-                  className="bg-green-900 border-2 border-green-400 rounded-lg flex items-center justify-center min-w-[120px] relative z-10"
-                  style={{
-                    height: `${Math.max(60, step.value / scaleFactor)}px`,
-                  }}
-                  data-step={stepIndex}
+                  key={`step-${stepIndex}`}
+                  className="flex items-center"
+                  style={{ height: `${stepHeight}px` }}
                 >
-                  <div className="text-center">
-                    <div className="text-white text-sm font-mono font-bold mb-1">
-                      {step.name}
-                    </div>
-                    <div className="text-green-400 text-xs font-mono">
-                      <span>$</span>
-                      {step.value.toLocaleString()}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Outflows */}
-              {step.outflows.length > 0 && (
-                <div className="flex flex-col">
-                  {step.outflows.map((outflow, outflowIndex) => (
+                  {/* Step Container */}
+                  <div className="flex flex-col items-center relative">
+                    {/* Step Box */}
                     <div
-                      key={`outflow-${stepIndex}-${outflowIndex}`}
-                      className="flex items-center space-x-4"
+                      className="bg-green-900 border-2 border-green-400 rounded-lg flex items-center justify-center min-w-[120px] relative z-10"
+                      style={{
+                        height: `${Math.max(60, step.value / scaleFactor)}px`,
+                      }}
+                      data-step={stepIndex}
                     >
-                      {/* Category Label */}
-                      <div
-                        className={`text-sm font-mono font-bold w-[100px] text-right ${
-                          outflow.type === "investment"
-                            ? "text-blue-300"
-                            : "text-red-300"
-                        }`}
-                      >
-                        <div className="break-words">{outflow.name}</div>
-                        <div className="text-xs font-mono opacity-75">
+                      <div className="text-center">
+                        <div className="text-white text-sm font-mono font-bold mb-1">
+                          {step.name}
+                        </div>
+                        <div className="text-green-400 text-xs font-mono">
                           <span>$</span>
-                          {outflow.value.toLocaleString()}
+                          {step.value.toLocaleString()}
                         </div>
                       </div>
+                    </div>
+                  </div>
 
-                      {/* Breakdown Boxes */}
-                      <div className="flex flex-col space-y-2">
-                        {Object.entries(outflow.breakdown).map(
-                          ([breakdownName, breakdownValue], breakdownIndex) => {
-                            const height = Math.max(
-                              20,
-                              Number(breakdownValue) / scaleFactor
-                            );
-                            const bgColor =
-                              outflow.type === "investment"
-                                ? "bg-blue-800"
-                                : "bg-red-800";
-                            const borderColor =
-                              outflow.type === "investment"
-                                ? "border-blue-300"
-                                : "border-red-300";
-                            const textColor =
-                              outflow.type === "investment"
-                                ? "text-blue-200"
-                                : "text-red-200";
-
-                            return (
-                              <div className="flex items-center ">
-                                <div
-                                  key={`breakdown-${stepIndex}-${outflowIndex}-${breakdownIndex}`}
-                                  className={`${bgColor} ${borderColor} border rounded flex items-center justify-center min-w-[80px] relative group`}
-                                  style={{ height: `${height}px` }}
-                                  data-outflow={`${step.name}-${outflow.name}`}
-                                ></div>
-                                {/* Breakdown content */}
-                                <div className=" px-2 flex flex-col">
-                                  <div
-                                    className={`${textColor} text-xs font-mono`}
-                                  >
+                {/* Outflows */}
+                {step.outflows.length > 0 && (
+                  <div className="flex flex-col h-full">
+                    {(() => {
+                      const investments = step.outflows.filter(o => o.type === "investment");
+                      const spending = step.outflows.filter(o => o.type === "spend");
+                      
+                      return (
+                        <>
+                          {/* Investment section (or placeholder) */}
+                          {investments.length > 0 ? (
+                            investments.map((outflow, outflowIndex) => (
+                              <div
+                                key={`outflow-investment-${stepIndex}-${outflowIndex}`}
+                                className="flex items-center justify-center space-x-4 flex-1"
+                              >
+                                {/* Category Label */}
+                                <div className="text-sm font-mono font-bold w-[100px] text-right text-blue-300">
+                                  <div className="break-words">{outflow.name}</div>
+                                  <div className="text-xs font-mono opacity-75">
                                     <span>$</span>
-                                    {Number(breakdownValue).toLocaleString()}
-                                  </div>
-                                  <div className="text-white text-xs font-mono font-bold truncate">
-                                    {breakdownName}
+                                    {outflow.value.toLocaleString()}
                                   </div>
                                 </div>
-                              </div>
-                            );
-                          }
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
 
-              {/* Flow Arrow to Next Step */}
-              {stepIndex < steps.length - 1 && (
-                <div className="flex items-center justify-center text-green-400 text-2xl font-mono">
-                  →
+                                {/* Breakdown Boxes */}
+                                <div className="flex flex-col space-y-2">
+                                  {Object.entries(outflow.breakdown).map(
+                                    (
+                                      [breakdownName, breakdownValue],
+                                      breakdownIndex
+                                    ) => {
+                                      const height = Math.max(
+                                        20,
+                                        Number(breakdownValue) / scaleFactor
+                                      );
+                                      
+                                      return (
+                                        <div className="flex items-center" key={`breakdown-investment-${stepIndex}-${outflowIndex}-${breakdownIndex}`}>
+                                          <div
+                                            className="bg-blue-800 border-blue-300 border rounded flex items-center justify-center min-w-[80px] relative group"
+                                            style={{ height: `${height}px` }}
+                                            data-outflow={`${step.name}-${outflow.name}`}
+                                          ></div>
+                                          {/* Breakdown content */}
+                                          <div className="px-2 flex flex-col">
+                                            <div className="text-blue-200 text-xs font-mono">
+                                              <span>$</span>
+                                              {Number(breakdownValue).toLocaleString()}
+                                            </div>
+                                            <div className="text-white text-xs font-mono font-bold truncate">
+                                              {breakdownName}
+                                            </div>
+                                          </div>
+                                        </div>
+                                      );
+                                    }
+                                  )}
+                                </div>
+                              </div>
+                            ))
+                          ) : (
+                            <div className="flex-1"></div>
+                          )}
+                          
+                          {/* Spending section */}
+                          {spending.map((outflow, outflowIndex) => (
+                            <div
+                              key={`outflow-spend-${stepIndex}-${outflowIndex}`}
+                              className="flex items-center justify-center space-x-4 flex-1"
+                            >
+                              {/* Category Label */}
+                              <div className="text-sm font-mono font-bold w-[100px] text-right text-red-300">
+                                <div className="break-words">{outflow.name}</div>
+                                <div className="text-xs font-mono opacity-75">
+                                  <span>$</span>
+                                  {outflow.value.toLocaleString()}
+                                </div>
+                              </div>
+
+                              {/* Breakdown Boxes */}
+                              <div className="flex flex-col space-y-2">
+                                {Object.entries(outflow.breakdown).map(
+                                  (
+                                    [breakdownName, breakdownValue],
+                                    breakdownIndex
+                                  ) => {
+                                    const height = Math.max(
+                                      20,
+                                      Number(breakdownValue) / scaleFactor
+                                    );
+                                    
+                                    return (
+                                      <div className="flex items-center" key={`breakdown-spend-${stepIndex}-${outflowIndex}-${breakdownIndex}`}>
+                                        <div
+                                          className="bg-red-800 border-red-300 border rounded flex items-center justify-center min-w-[80px] relative group"
+                                          style={{ height: `${height}px` }}
+                                          data-outflow={`${step.name}-${outflow.name}`}
+                                        ></div>
+                                        {/* Breakdown content */}
+                                        <div className="px-2 flex flex-col">
+                                          <div className="text-red-200 text-xs font-mono">
+                                            <span>$</span>
+                                            {Number(breakdownValue).toLocaleString()}
+                                          </div>
+                                          <div className="text-white text-xs font-mono font-bold truncate">
+                                            {breakdownName}
+                                          </div>
+                                        </div>
+                                      </div>
+                                    );
+                                  }
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </>
+                      );
+                    })()}
+                  </div>
+                )}
                 </div>
-              )}
-            </div>
-          ))}
+
+                {/* Throughline between steps */}
+                {stepIndex < steps.length - 1 && (
+                  <div className="flex items-center justify-center w-16" style={{ height: `${stepHeight}px` }}>
+                    <div className="w-full h-10 bg-green-400 bg-opacity-30 overflow-hidden relative">
+                      {throughlineDollars
+                        .filter((dollar) => dollar.stepIndex === stepIndex)
+                        .map((dollar) => (
+                          <div
+                            key={dollar.id}
+                            className="absolute text-sm font-mono font-bold text-green-400"
+                            style={{
+                              left: `${dollar.x}px`,
+                              top: `${dollar.y}px`,
+                              opacity: 0.8,
+                              transform: "translate(-50%, -50%)",
+                            }}
+                          >
+                            $
+                          </div>
+                        ))}
+                    </div>
+                  </div>
+                )}
+              </>
+            );
+          })}
         </div>
       </div>
 

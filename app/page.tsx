@@ -1,10 +1,10 @@
-"use client"
+"use client";
 
-import { FinancialProvider } from "@/contexts/financial-context"
-import { FlexCashFlow } from "@/components/flex-cash-flow"
-import { TerminalScenario } from "@/components/terminal-scenario"
-import { TerminalControls } from "@/components/terminal-controls"
-import { Toaster } from "@/components/ui/toaster"
+import { FinancialProvider } from "@/contexts/financial-context";
+import { FlexCashFlow } from "@/components/flex-cash-flow";
+import { TerminalScenario } from "@/components/terminal-scenario";
+import { TerminalControls } from "@/components/terminal-controls";
+import { Toaster } from "@/components/ui/toaster";
 
 export default function Home() {
   return (
@@ -13,7 +13,9 @@ export default function Home() {
         <div className="container mx-auto px-4 py-8">
           {/* Terminal header */}
           <div className="mb-8 border-2 border-green-500 rounded-lg p-6 bg-black scanlines">
-            <div className="terminal-green text-lg font-mono font-bold mb-2">CASH_FLOW_ANALYZER</div>
+            <div className="terminal-green text-lg font-mono font-bold mb-2">
+              BAND4BAND $$$
+            </div>
             <div className="terminal-cyan text-sm font-mono">
               {">"} Financial flow visualization with calculated values
             </div>
@@ -39,5 +41,5 @@ export default function Home() {
         <Toaster />
       </div>
     </FinancialProvider>
-  )
+  );
 }
